@@ -31,8 +31,14 @@
     <ProjectGuid>{81CE8DAF-EBB2-4761-8E45-B71ABCCA8C68}</ProjectGuid>
     <RootNamespace>SDL</RootNamespace>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
+    <MinimumVisualStudioVersion>17.0</MinimumVisualStudioVersion>
+    <GDKCrossPlatform>true</GDKCrossPlatform>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup>
+    <GDKCrossPlatformPath Condition="'$(GDKCrossPlatformPath)'==''">$(GameDKCoreLatest)</GDKCrossPlatformPath>
+    <GDKCrossPlatformPath Condition="'$(GDKCrossPlatformPath)'==''">$(GameDKXboxLatest)</GDKCrossPlatformPath>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Gaming.Desktop.x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <PlatformToolset Condition="'$(VisualStudioVersion)' != '10.0'">$(DefaultPlatformToolset)</PlatformToolset>
@@ -118,6 +124,36 @@
     <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Release|Gaming.Xbox.Scarlett.x64'" />
     <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Release|Gaming.Xbox.XboxOne.x64'" />
   </PropertyGroup>
+  <!-- GDK path configuration for Xbox Scarlett -->
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Gaming.Xbox.Scarlett.x64'">
+    <ReferencePath>$(Console_SdkLibPath);$(Console_SdkWindowsMetadataPath)</ReferencePath>
+    <LibraryPath>$(Console_SdkLibPath)</LibraryPath>
+    <LibraryWPath>$(Console_SdkLibPath);$(Console_SdkWindowsMetadataPath)</LibraryWPath>
+    <IncludePath>$(Console_SdkIncludeRoot)</IncludePath>
+    <ExecutablePath>$(Console_SdkRoot)bin;$(Console_SdkToolPath);$(ExecutablePath)</ExecutablePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Gaming.Xbox.Scarlett.x64'">
+    <ReferencePath>$(Console_SdkLibPath);$(Console_SdkWindowsMetadataPath)</ReferencePath>
+    <LibraryPath>$(Console_SdkLibPath)</LibraryPath>
+    <LibraryWPath>$(Console_SdkLibPath);$(Console_SdkWindowsMetadataPath)</LibraryWPath>
+    <IncludePath>$(Console_SdkIncludeRoot)</IncludePath>
+    <ExecutablePath>$(Console_SdkRoot)bin;$(Console_SdkToolPath);$(ExecutablePath)</ExecutablePath>
+  </PropertyGroup>
+  <!-- GDK path configuration for Xbox One -->
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Gaming.Xbox.XboxOne.x64'">
+    <ReferencePath>$(Console_SdkLibPath);$(Console_SdkWindowsMetadataPath)</ReferencePath>
+    <LibraryPath>$(Console_SdkLibPath)</LibraryPath>
+    <LibraryWPath>$(Console_SdkLibPath);$(Console_SdkWindowsMetadataPath)</LibraryWPath>
+    <IncludePath>$(Console_SdkIncludeRoot)</IncludePath>
+    <ExecutablePath>$(Console_SdkRoot)bin;$(Console_SdkToolPath);$(ExecutablePath)</ExecutablePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Gaming.Xbox.XboxOne.x64'">
+    <ReferencePath>$(Console_SdkLibPath);$(Console_SdkWindowsMetadataPath)</ReferencePath>
+    <LibraryPath>$(Console_SdkLibPath)</LibraryPath>
+    <LibraryWPath>$(Console_SdkLibPath);$(Console_SdkWindowsMetadataPath)</LibraryWPath>
+    <IncludePath>$(Console_SdkIncludeRoot)</IncludePath>
+    <ExecutablePath>$(Console_SdkRoot)bin;$(Console_SdkToolPath);$(ExecutablePath)</ExecutablePath>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Gaming.Desktop.x64'">
     <Midl>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -168,7 +204,7 @@
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>setupapi.lib;winmm.lib;imm32.lib;version.lib;xgameruntime.lib;d3d12_xs.lib;uuid.lib;vcruntimed.lib;msvcrtd.lib;ucrtd.lib;msvcprtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>setupapi.lib;winmm.lib;imm32.lib;version.lib;xgameruntime.lib;d3d12_xs.lib;uuid.lib;Microsoft.Xbox.Services.C.Thunks.Debug.lib;vcruntimed.lib;msvcrtd.lib;ucrtd.lib;msvcprtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <IgnoreAllDefaultLibraries>true</IgnoreAllDefaultLibraries>
@@ -264,7 +300,7 @@
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>setupapi.lib;winmm.lib;imm32.lib;version.lib;xgameruntime.lib;d3d12_xs.lib;uuid.lib;vcruntime.lib;msvcrt.lib;ucrt.lib;msvcprt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>setupapi.lib;winmm.lib;imm32.lib;version.lib;xgameruntime.lib;d3d12_xs.lib;uuid.lib;Microsoft.Xbox.Services.C.Thunks.lib;vcruntime.lib;msvcrt.lib;ucrt.lib;msvcprt.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>

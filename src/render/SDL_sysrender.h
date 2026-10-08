@@ -202,6 +202,11 @@ struct SDL_Renderer
     void *(*GetMetalLayer)(SDL_Renderer *renderer);
     void *(*GetMetalCommandEncoder)(SDL_Renderer *renderer);
 
+#ifdef __GDK__
+    void (*GDKSuspendRenderer)(SDL_Renderer *renderer);
+    void (*GDKResumeRenderer)(SDL_Renderer *renderer);
+#endif
+
     /* The current renderer info */
     SDL_RendererInfo info;
 

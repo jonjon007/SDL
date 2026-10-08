@@ -899,3 +899,5 @@
 #define SDL_GDKGetDefaultUser SDL_GDKGetDefaultUser_REAL
 #define SDL_GameControllerGetSteamHandle SDL_GameControllerGetSteamHandle_REAL
 #define SDL_WinRTGetProtocolActivationURI SDL_WinRTGetProtocolActivationURI_REAL
+#define SDL_GDKSuspendRenderer SDL_GDKSuspendRenderer_REAL
+#define SDL_GDKResumeRenderer SDL_GDKResumeRenderer_REAL

@@ -39,6 +39,15 @@
     <GDKCrossPlatformPath Condition="'$(GDKCrossPlatformPath)'==''">$(GameDKCoreLatest)</GDKCrossPlatformPath>
     <GDKCrossPlatformPath Condition="'$(GDKCrossPlatformPath)'==''">$(GameDKXboxLatest)</GDKCrossPlatformPath>
   </PropertyGroup>
+  <!-- XSAPI thunks import lib for Release Xbox builds. GDK 2510+ console
+       Microsoft.Xbox.Services.C.Thunks.lib imports Microsoft.Xbox.Services.C.Thunks.dll,
+       which also needs libHttpClient.dll; the GDK.C.Thunks lib imports
+       Microsoft.Xbox.Services.GDK.C.Thunks.dll (what the shipped package carries).
+       SDL only imports XblInitialize. Override with /p:XblThunksLib=... -->
+  <PropertyGroup>
+    <XblThunksLib Condition="'$(XblThunksLib)'=='' and Exists('$(GameDKXboxLatest)GRDK\ExtensionLibraries\Xbox.Services.API.C\Lib\x64\Release\Microsoft.Xbox.Services.GDK.C.Thunks.lib')">$(GameDKXboxLatest)GRDK\ExtensionLibraries\Xbox.Services.API.C\Lib\x64\Release\Microsoft.Xbox.Services.GDK.C.Thunks.lib</XblThunksLib>
+    <XblThunksLib Condition="'$(XblThunksLib)'==''">Microsoft.Xbox.Services.C.Thunks.lib</XblThunksLib>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Gaming.Desktop.x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <PlatformToolset Condition="'$(VisualStudioVersion)' != '10.0'">$(DefaultPlatformToolset)</PlatformToolset>
@@ -300,7 +309,7 @@
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>setupapi.lib;winmm.lib;imm32.lib;version.lib;xgameruntime.lib;d3d12_xs.lib;uuid.lib;Microsoft.Xbox.Services.C.Thunks.lib;vcruntime.lib;msvcrt.lib;ucrt.lib;msvcprt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>setupapi.lib;winmm.lib;imm32.lib;version.lib;xgameruntime.lib;d3d12_xs.lib;uuid.lib;$(XblThunksLib);vcruntime.lib;msvcrt.lib;ucrt.lib;msvcprt.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -335,7 +344,7 @@
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>setupapi.lib;winmm.lib;imm32.lib;version.lib;xgameruntime.lib;d3d12_x.lib;uuid.lib;Microsoft.Xbox.Services.C.Thunks.lib;vcruntime.lib;msvcrt.lib;ucrt.lib;msvcprt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>setupapi.lib;winmm.lib;imm32.lib;version.lib;xgameruntime.lib;d3d12_x.lib;uuid.lib;$(XblThunksLib);vcruntime.lib;msvcrt.lib;ucrt.lib;msvcprt.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>

@@ -270,6 +270,31 @@ extern DECLSPEC int SDLCALL SDL_GDKRunApp(SDL_main_func mainFunction, void *rese
  */
 extern DECLSPEC void SDLCALL SDL_GDKSuspendComplete(void);
 
+struct SDL_Renderer;
+
+/**
+ * Suspend a renderer's GPU work for Xbox PLM suspend.
+ *
+ * Call this from the thread that renders, after receiving
+ * SDL_APP_DIDENTERBACKGROUND and before calling SDL_GDKSuspendComplete().
+ * No rendering may happen until SDL_GDKResumeRenderer() is called.
+ *
+ * This is a no-op for renderers that don't need it.
+ *
+ * \param renderer the renderer to suspend.
+ */
+extern DECLSPEC void SDLCALL SDL_GDKSuspendRenderer(struct SDL_Renderer *renderer);
+
+/**
+ * Resume a renderer suspended with SDL_GDKSuspendRenderer().
+ *
+ * Call this from the thread that renders after receiving
+ * SDL_APP_WILLENTERFOREGROUND.
+ *
+ * \param renderer the renderer to resume.
+ */
+extern DECLSPEC void SDLCALL SDL_GDKResumeRenderer(struct SDL_Renderer *renderer);
+
 #endif /* __GDK__ */
 
 #ifdef __cplusplus

@@ -988,3 +988,7 @@ SDL_DYNAPI_PROC(Uint64,SDL_GameControllerGetSteamHandle,(SDL_GameController *a),
 #if defined(__WINRT__)
 SDL_DYNAPI_PROC(char*,SDL_WinRTGetProtocolActivationURI,(void),(),return)
 #endif
+#if defined(__GDK__)
+SDL_DYNAPI_PROC(void,SDL_GDKSuspendRenderer,(SDL_Renderer *a),(a),)
+SDL_DYNAPI_PROC(void,SDL_GDKResumeRenderer,(SDL_Renderer *a),(a),)
+#endif

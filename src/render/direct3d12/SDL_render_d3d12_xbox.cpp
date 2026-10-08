@@ -129,11 +129,22 @@ D3D12_XBOX_CreateBackBufferTarget(ID3D12Device1 *device, int width, int height, 
         );
 }
 
+/* Frame events stop while PLM quiesces the title, and window messages sent
+ * during suspend can reach the renderer before the app suspends it, so never
+ * wait for a frame origin indefinitely. Origin events normally arrive every
+ * ~16ms; on timeout the token stays NULL and the next present retries. */
+#define D3D12_XBOX_FRAME_EVENT_TIMEOUT_MS 100
+
 extern "C" HRESULT
 D3D12_XBOX_StartFrame(ID3D12Device1 *device, UINT64 *outToken)
 {
+    HRESULT result;
     *outToken = D3D12XBOX_FRAME_PIPELINE_TOKEN_NULL;
-    return device->WaitFrameEventX(D3D12XBOX_FRAME_EVENT_ORIGIN, INFINITE, NULL, D3D12XBOX_WAIT_FRAME_EVENT_FLAG_NONE, outToken);
+    result = device->WaitFrameEventX(D3D12XBOX_FRAME_EVENT_ORIGIN, D3D12_XBOX_FRAME_EVENT_TIMEOUT_MS, NULL, D3D12XBOX_WAIT_FRAME_EVENT_FLAG_NONE, outToken);
+    if (FAILED(result)) {
+        *outToken = D3D12XBOX_FRAME_PIPELINE_TOKEN_NULL;
+    }
+    return result;
 }
 
 extern "C" HRESULT
@@ -145,6 +156,71 @@ D3D12_XBOX_PresentFrame(ID3D12CommandQueue *commandQueue, UINT64 token, ID3D12Re
     planeParameters.ResourceCount = 1;
     planeParameters.ppResources = &renderTarget;
     return commandQueue->PresentX(1, &planeParameters, NULL);
+}
+
+extern "C" HRESULT
+D3D12_XBOX_SuspendQueue(ID3D12CommandQueue *commandQueue)
+{
+    return commandQueue->SuspendX(0);
+}
+
+/* Must be called after PLM resume. Frame event registration does not survive
+ * suspend, so re-register it as the GDK DeviceResources sample does. */
+extern "C" HRESULT
+D3D12_XBOX_ResumeQueue(ID3D12Device1 *device, ID3D12CommandQueue *commandQueue)
+{
+    HRESULT result;
+    IDXGIDevice1 *dxgiDevice = NULL;
+    IDXGIAdapter *dxgiAdapter = NULL;
+    IDXGIOutput *dxgiOutput = NULL;
+
+    result = commandQueue->ResumeX();
+    if (FAILED(result)) {
+        WIN_SetErrorFromHRESULT(SDL_COMPOSE_ERROR("[xbox] ResumeX"), result);
+        return result;
+    }
+
+    result = device->QueryInterface(SDL_IID_IDXGIDevice1, (void **) &dxgiDevice);
+    if (FAILED(result)) {
+        WIN_SetErrorFromHRESULT(SDL_COMPOSE_ERROR("[xbox] ID3D12Device to IDXGIDevice1"), result);
+        goto done;
+    }
+
+    result = dxgiDevice->GetAdapter(&dxgiAdapter);
+    if (FAILED(result)) {
+        WIN_SetErrorFromHRESULT(SDL_COMPOSE_ERROR("[xbox] dxgiDevice->GetAdapter"), result);
+        goto done;
+    }
+
+    result = dxgiAdapter->EnumOutputs(0, &dxgiOutput);
+    if (FAILED(result)) {
+        WIN_SetErrorFromHRESULT(SDL_COMPOSE_ERROR("[xbox] dxgiAdapter->EnumOutputs"), result);
+        goto done;
+    }
+
+    result = device->SetFrameIntervalX(dxgiOutput, D3D12XBOX_FRAME_INTERVAL_60_HZ, 1, D3D12XBOX_FRAME_INTERVAL_FLAG_NONE);
+    if (FAILED(result)) {
+        WIN_SetErrorFromHRESULT(SDL_COMPOSE_ERROR("[xbox] SetFrameIntervalX"), result);
+        goto done;
+    }
+
+    result = device->ScheduleFrameEventX(D3D12XBOX_FRAME_EVENT_ORIGIN, 0, NULL, D3D12XBOX_SCHEDULE_FRAME_EVENT_FLAG_NONE);
+    if (FAILED(result)) {
+        WIN_SetErrorFromHRESULT(SDL_COMPOSE_ERROR("[xbox] ScheduleFrameEventX"), result);
+        goto done;
+    }
+
+done:
+    if (dxgiOutput) {
+        dxgiOutput->Release();
+    }
+    if (dxgiAdapter) {
+        dxgiAdapter->Release();
+    }
+    if (dxgiDevice) {
+        dxgiDevice->Release();
+    }
+    return result;
 }
 
 extern "C" void

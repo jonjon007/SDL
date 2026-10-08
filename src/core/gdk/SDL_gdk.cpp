@@ -171,6 +171,7 @@ SDL_GDKRunApp(SDL_main_func mainFunction, void *reserved)
                 SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "[GDK] in RegisterAppStateChangeNotification handler: plmSuspendComplete event signaled.");
             } else {
                 SDL_SendAppEvent(SDL_APP_WILLENTERFOREGROUND);
+                SDL_SendAppEvent(SDL_APP_DIDENTERFOREGROUND);
             }
         };
         if (RegisterAppStateChangeNotification(rascn, NULL, &hPLM)) {

@@ -292,6 +292,10 @@ typedef struct
     Float4X4 identity;
     int currentVertexBuffer;
     SDL_bool issueBatch;
+    SDL_bool suspended;        /* GDK PLM: queue is SuspendX'd, no GPU submission allowed */
+    SDL_bool resizePending;    /* window size changed while suspended */
+    int backBufferWidth;       /* size the Xbox back buffers were created at */
+    int backBufferHeight;
 } D3D12_RenderData;
 
 /* Define D3D GUIDs here so we don't have to include uuid.lib. */
@@ -458,6 +462,9 @@ static D3D12_GPU_DESCRIPTOR_HANDLE D3D12_CPUtoGPUHandle(ID3D12DescriptorHeap *he
 
 static void D3D12_WaitForGPU(D3D12_RenderData *data)
 {
+    if (data->suspended) {
+        return;
+    }
     if (data->commandQueue && data->fence && data->fenceEvent) {
         D3D_CALL(data->commandQueue, Signal, data->fence, data->fenceValue);
         if (D3D_CALL(data->fence, GetCompletedValue) < data->fenceValue) {
@@ -533,6 +540,11 @@ static int D3D12_IssueBatch(D3D12_RenderData *data)
 {
     HRESULT result = S_OK;
 
+    if (data->suspended) {
+        /* Keep recording; the open command list is submitted after resume. */
+        return result;
+    }
+
     /* Issue the command list */
     result = D3D_CALL(data->commandList, Close);
     if (FAILED(result)) {
@@ -547,6 +559,53 @@ static int D3D12_IssueBatch(D3D12_RenderData *data)
 
     return result;
 }
+
+#if defined(__XBOXONE__) || defined(__XBOXSERIES__)
+
+static HRESULT D3D12_UpdateForWindowSizeChange(SDL_Renderer *renderer);
+
+static void D3D12_GDKSuspendRenderer(SDL_Renderer *renderer)
+{
+    D3D12_RenderData *data = (D3D12_RenderData *)renderer->driverdata;
+    HRESULT result;
+
+    if (data->suspended) {
+        return;
+    }
+    D3D12_WaitForGPU(data);
+    result = D3D12_XBOX_SuspendQueue(data->commandQueue);
+    if (FAILED(result)) {
+        WIN_SetErrorFromHRESULT(SDL_COMPOSE_ERROR("[xbox] SuspendX"), result);
+        return;
+    }
+    /* Window events keep being pumped while suspended (PLM sends size and
+     * focus changes), so every path that touches the queue checks this. */
+    data->suspended = SDL_TRUE;
+}
+
+static void D3D12_GDKResumeRenderer(SDL_Renderer *renderer)
+{
+    D3D12_RenderData *data = (D3D12_RenderData *)renderer->driverdata;
+
+    if (!data->suspended) {
+        return;
+    }
+    if (FAILED(D3D12_XBOX_ResumeQueue(data->d3dDevice, data->commandQueue))) {
+        return;
+    }
+    data->suspended = SDL_FALSE;
+
+    if (data->resizePending) {
+        data->resizePending = SDL_FALSE;
+        /* Recreates the back buffers and acquires a fresh frame token. */
+        D3D12_UpdateForWindowSizeChange(renderer);
+    } else {
+        /* The frame token acquired before suspend is stale; wait for a fresh origin event. */
+        D3D12_XBOX_StartFrame(data->d3dDevice, &data->frameToken);
+    }
+}
+
+#endif
 
 static void D3D12_DestroyRenderer(SDL_Renderer *renderer)
 {
@@ -1373,6 +1432,8 @@ static HRESULT D3D12_CreateWindowSizeDependentResources(SDL_Renderer *renderer)
             WIN_SetErrorFromHRESULT(SDL_COMPOSE_ERROR("D3D12_XBOX_CreateBackBufferTarget"), result);
             goto done;
         }
+        data->backBufferWidth = renderer->window->w;
+        data->backBufferHeight = renderer->window->h;
 #else
         result = D3D_CALL(data->swapChain, GetBuffer, /* NOLINT(clang-analyzer-core.NullDereference) */
                           i,
@@ -1426,6 +1487,21 @@ done:
 static HRESULT D3D12_UpdateForWindowSizeChange(SDL_Renderer *renderer)
 {
     D3D12_RenderData *data = (D3D12_RenderData *)renderer->driverdata;
+#if defined(__XBOXONE__) || defined(__XBOXSERIES__)
+    /* PLM suspend hides the window, so SDL leaves and re-enters fullscreen and
+     * reports SIZE_CHANGED without a real change. Rebuilding back buffers then
+     * blocks in the driver while the title quiesces, so skip no-op resizes. */
+    if (data->renderTargets[0] &&
+        renderer->window->w == data->backBufferWidth &&
+        renderer->window->h == data->backBufferHeight) {
+        return S_OK;
+    }
+    SDL_Log("[xbox] D3D12 resize %dx%d -> %dx%d (suspended=%d)", data->backBufferWidth, data->backBufferHeight, renderer->window->w, renderer->window->h, (int)data->suspended);
+#endif
+    if (data->suspended) {
+        data->resizePending = SDL_TRUE;
+        return S_OK;
+    }
     /* If the GPU has previous work, wait for it to be done first */
     D3D12_WaitForGPU(data);
     return D3D12_CreateWindowSizeDependentResources(renderer);
@@ -2930,6 +3006,11 @@ static int D3D12_RenderPresent(SDL_Renderer *renderer)
 #endif
     HRESULT result;
 
+    if (data->suspended) {
+        /* Drop the frame; nothing may be submitted to a SuspendX'd queue. */
+        return 0;
+    }
+
     /* Transition the render target to present state */
     D3D12_TransitionResource(data,
                              data->renderTargets[data->currentBackBufferIndex],
@@ -2941,7 +3022,16 @@ static int D3D12_RenderPresent(SDL_Renderer *renderer)
     D3D_CALL(data->commandQueue, ExecuteCommandLists, 1, (ID3D12CommandList *const *)&data->commandList);
 
 #if defined(__XBOXONE__) || defined(__XBOXSERIES__)
-    result = D3D12_XBOX_PresentFrame(data->commandQueue, data->frameToken, data->renderTargets[data->currentBackBufferIndex]);
+    if (data->frameToken == 0) { /* D3D12XBOX_FRAME_PIPELINE_TOKEN_NULL */
+        D3D12_XBOX_StartFrame(data->d3dDevice, &data->frameToken);
+    }
+    if (data->frameToken != 0) {
+        result = D3D12_XBOX_PresentFrame(data->commandQueue, data->frameToken, data->renderTargets[data->currentBackBufferIndex]);
+        data->frameToken = 0; /* tokens are single-use */
+    } else {
+        /* No frame origin (frame events stop while quiescing): drop this frame. */
+        result = S_OK;
+    }
 #else
     if (renderer->info.flags & SDL_RENDERER_PRESENTVSYNC) {
         syncInterval = 1;
@@ -3055,6 +3145,10 @@ int D3D12_CreateRenderer(SDL_Renderer *renderer, SDL_Window *window, Uint32 flag
         renderer->info.flags |= SDL_RENDERER_PRESENTVSYNC;
     }
     renderer->SetVSync = D3D12_SetVSync;
+#if defined(__XBOXONE__) || defined(__XBOXSERIES__)
+    renderer->GDKSuspendRenderer = D3D12_GDKSuspendRenderer;
+    renderer->GDKResumeRenderer = D3D12_GDKResumeRenderer;
+#endif
 
     /* HACK: make sure the SDL_Renderer references the SDL_Window data now, in
      * order to give init functions access to the underlying window handle:

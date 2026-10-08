@@ -4514,6 +4514,29 @@ void *SDL_RenderGetMetalCommandEncoder(SDL_Renderer *renderer)
     return NULL;
 }
 
+#ifdef __GDK__
+
+void SDL_GDKSuspendRenderer(SDL_Renderer *renderer)
+{
+    CHECK_RENDERER_MAGIC(renderer,);
+
+    if (renderer->GDKSuspendRenderer) {
+        FlushRenderCommands(renderer);
+        renderer->GDKSuspendRenderer(renderer);
+    }
+}
+
+void SDL_GDKResumeRenderer(SDL_Renderer *renderer)
+{
+    CHECK_RENDERER_MAGIC(renderer,);
+
+    if (renderer->GDKResumeRenderer) {
+        renderer->GDKResumeRenderer(renderer);
+    }
+}
+
+#endif /* __GDK__ */
+
 static SDL_BlendMode SDL_GetShortBlendMode(SDL_BlendMode blendMode)
 {
     if (blendMode == SDL_BLENDMODE_NONE_FULL) {
